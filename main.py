@@ -3,9 +3,12 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 import time
+import requests
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
+# TODO: Update this with your ngrok URL
+NGROK_LINK = 'https://adb1-34-32-253-133.ngrok.io'
 
 client = OpenAI()
 thread = client.beta.threads.create()
@@ -89,6 +92,13 @@ def retriever(query: str):
         if ite == idx:
             return {'tools': msg.content[0].text.value}
         ite += 1
+        
+
+def check_ans(query):
+    payload = {"query": query}
+    req = requests.post(
+        NGROK_LINK+'/predict/', json=payload)
+    return req.json()['text']
     
     
 def pipeline(query: str):
@@ -124,6 +134,9 @@ async def root():
 
 @app.post("/api/query/", response_model=QueryOutput)
 async def process_query_endpoint(query_input: QueryInput):
+    answerability = check_ans(query_input.query)
+    if answerability == 'Unanswerable':
+        return {"isResponse": True, "text": "Sorry, I don't know the answer to that. Please try another question.", "code": {}}
     processed_text = process_query(query_input.query)
     pipeline_output = pipeline(query_input.query)
     return {"isResponse": True, "text": processed_text, "code": pipeline_output}
