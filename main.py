@@ -1,15 +1,63 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 import time
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
+from langchain.vectorstores import Chroma
+from langchain.chat_models import ChatOpenAI
+from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain.output_parsers import PydanticOutputParser
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings, CohereEmbeddings
+from typing import List
+from sentence_transformers import SentenceTransformer
+import logging
+import json
+from data import example_doc_feedback as ex
+
+logging.basicConfig()
+logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
-RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
+# RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
 
 client = OpenAI()
 thread = client.beta.threads.create()
-ret_thread = client.beta.threads.create()
+# ret_thread = client.beta.threads.create()
+
+RETRIEVER_INITIALIZED = False
+
+def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
+    with open(api_doc_path, 'r') as f:
+        data = json.load(f)
+    
+    doc_format = ''
+    for i in data['ToolList']:
+        if i['API Name'] == api_name:
+            doc_format += f"##API Name: {i['API Name']} \n"
+            doc_format += f"###Description: {i['API Description']}\n\n"
+            doc_format += f'###Arguments: \n\n'
+            for j in i['API arguments']:
+                doc_format += f"API Argument: {j['Argument Name']}\n"
+                doc_format += f"Argument Description: {j['Argument Description']}\n"
+                doc_format += f"Return Type: {j['Argument Type']}\n"
+                # doc_format += f"Value Examples: {j['Argument Value Examples']}\n"
+                
+    # with open(api_example_path, 'r') as f:
+    #     ex_data = json.load(f)
+    
+    # ex_format = '\n\nExamples:\n'
+    # for query in ex_data:
+    #     if api_name in query['Output']:
+    #         ex_format += f"###Query: {query['Query']}\n"
+    #         ex_format += f"###Output: {query['Output']}\n"
+    # return doc_format + ex_format
+    
+    return doc_format
 
 def wait_on_run(run, thread):
     while run.status == "queued" or run.status == "in_progress":
@@ -64,35 +112,113 @@ def process_query(query: str) -> str:
 
 
 def retriever(query: str):
-    message = client.beta.threads.messages.create(
-        thread_id=ret_thread.id,
-        role="user",
-        content=query
+    if not RETRIEVER_INITIALIZED:
+        class LineList(BaseModel):
+            lines: List[str] = Field(description="Lines of text")
+
+        class LineListOutputParser(PydanticOutputParser):
+            def __init__(self) -> None:
+                super().__init__(pydantic_object=LineList)
+
+            def parse(self, text: str) -> LineList:
+                lines = text.strip().split("\n")
+                return LineList(lines=lines)
+        api_list = []
+        with open('./data/api_documentation.json', 'r') as f:
+            data = json.load(f)
+        for i in data['ToolList']:
+            api_list.append(i['API Name'])
+            
+        doc = []
+        meta = []
+        id = []
+        for itr, i in enumerate(api_list):
+            api = {}
+            doc.append(generate_document('./data/api_documentation.json', './data/examples.json', i))
+            api["API"] = i
+            meta.append(api)
+            id.append(f"ID{itr}")
+
+        output_parser = LineListOutputParser()
+        
+        QUERY_PROMPT = PromptTemplate(
+            input_variables=["question"],
+            # template = "Repeat the word apple two times, like, \napple\napple",
+            template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
+            Original question: {question}""",
+        )
+        llm = ChatOpenAI(temperature=0)
+        llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
+        
+        client_hf = chromadb.PersistentClient(path="./hf_db")
+        sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
+        collection_hf = client_hf.get_or_create_collection(name="hf_check_1", embedding_function = sentence_transformer_ef)
+        collection_hf.add(
+            documents=doc,
+            metadatas=meta,
+            ids=id
+        )
+        
+        embeddings_hf = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-base-en-v1.5"
+        )
+
+        vectorstore_hf = Chroma(
+            collection_name="hf_check_1",
+            embedding_function=embeddings_hf,
+            persist_directory = "./hf_db"
+        )
+        retriever_from_llm = MultiQueryRetriever(
+            retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
+        )
+
+    unique_docs_hf = retriever_from_llm.get_relevant_documents(
+        query=query
     )
-    run = client.beta.threads.runs.create(
-        thread_id=ret_thread.id,
-        assistant_id=RETRIEVER_ID,
+    return unique_docs_hf
+
+
+def feedback_part1(documentation_txt, model_output, temperature = 0.2, max_tokens = 100):
+    feedback_prompt1 = """You are an expert at analyzing API call sequences. Given an API call sequence, your task is to explain the task being performed by the API calls in small steps. Keep the steps as small as possible. Do not explain the API call, just output what it is doing. Output the small steps in points and nothing else. Here is the API documentation: 
+""" + documentation_txt + "Here is the API call sequence: \n" + model_output
+
+    feedback_response1 = client.chat.completions.create(
+        model="gpt-4",
+        messages = [{"role": "user", "content" : feedback_prompt1}],
+        temperature=temperature,
+        max_tokens = max_tokens,
     )
-    wait_on_run(run, ret_thread)
-    messages = client.beta.threads.messages.list(
-        thread_id=ret_thread.id,
-        order='desc',
+    return feedback_response1.choices[0].message.content
+
+
+def feedback_part2(input_query, generated_query, temperature = 0.2, max_tokens = 100):
+    feedback_prompt2 = """I am training an agent to generate the output based on an input query. Based on the output generated by the agent, I have written a generated query. You have to analyze how the generated query is different from the input query. Based on this, give feedback to the agent about how the output written by it should be modified to satisfy the input query. Do not mention the generated query in the feedback. Output only the feedback and nothing else.\n""" + input_query + """\n Here is the generated query: \n""" + generated_query
+    
+    feedback_response2 = client.chat.completions.create(
+    model="gpt-4",
+    messages = [{"role": "user", "content" : feedback_prompt2}],
+    temperature=temperature,
+    max_tokens = max_tokens,
     )
     
-    print(messages)
-    idx, ite = -1, 0
-    for i, msg in enumerate(messages):
-        if msg.content[0].text.value == query:
-            idx += i
-    
-    for msg in messages:
-        if ite == idx:
-            return {'tools': msg.content[0].text.value}
-        ite += 1
-    
-    
+    return feedback_response2.choices[0].message.content
+
+
+def get_feedback(input_query, model_output, documentation_txt):
+    generated_query = feedback_part1(documentation_txt, model_output)
+    final_feedback = feedback_part2(input_query, generated_query)
+    return final_feedback
+
+
 def pipeline(query: str):
-    return retriever(query)
+    retrieved_str = ""
+    retrieved_docs = retriever(query)
+    for doc in retrieved_docs:
+        retrieved_str += doc.page_content + '\n\n\n'
+    print(retrieved_str)
+    
+    feedback = get_feedback(ex.input_query, ex.model_output, ex.documentation_txt)
+    return {'retrieved_docs': retrieved_str, 'feedback': feedback}
 
 app = FastAPI()
 

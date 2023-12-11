@@ -1,0 +1,170 @@
+{
+    "ToolList": [
+        {
+            "API Name": "works_list",
+            "API Description": "Returns a list of work items matching the request",
+            "API arguments": [
+                {
+                    "Argument Name": "applies_to_part",
+                    "Argument Description": "Filters for work belonging to any of the provided parts",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "created_by",
+                    "Argument Description": "Filters for work created by any of these users",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "issue.priority",
+                    "Argument Description": "Filters for issues with any of the provided priorities. Allowed values: p0, p1, p2, p3",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "issue.rev_orgs",
+                    "Argument Description": "Filters for issues with any of the provided Rev organizations",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "limit",
+                    "Argument Description": "The maximum number of works to return. The default is 50",
+                    "Argument Type": "integer(int32)",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "owned_by",
+                    "Argument Description": "Filters for work owned by any of these users",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "stage.name",
+                    "Argument Description": "Filters for records in the provided stage(s) by name",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "ticket.needs_response",
+                    "Argument Description": "Filters for tickets that need a response",
+                    "Argument Type": "boolean",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "ticket.rev_org",
+                    "Argument Description": "Filters for tickets associated with any of the provided Rev organizations",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "ticket.severity",
+                    "Argument Description": "Filters for tickets with any of the provided severities. Allowed values: blocker, high, low, mediu",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "ticket.source_channel",
+                    "Argument Description": "Filters for tickets with any of the provided source channels",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "type",
+                    "Argument Description": "Filters for work of the provided types. Allowed values: issue, ticket, task",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "summarize_objects",
+            "API Description": "Summarizes a list of objects. The logic of how to summarize a particular object type is an internal implementation detail.",
+            "API arguments": [
+                {
+                    "Argument Name": "objects",
+                    "Argument Description": "List of objects to summarize",
+                    "Argument Type": "array of objects",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "prioritize_objects",
+            "API Description": "Returns a list of objects sorted by priority. The logic of what constitutes priority for a given object is an internal implementation detail.",
+            "API arguments": [
+                {
+                    "Argument Name": "objects",
+                    "Argument Description": "A list of objects to be prioritized",
+                    "Argument Type": "array of objects",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "add_work_items_to_sprint",
+            "API Description": "Adds the given work items to the sprint",
+            "API arguments": [
+                {
+                    "Argument Name": "work_ids",
+                    "Argument Description": "A list of work item IDs to be added to the sprint.",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "sprint_id",
+                    "Argument Description": "The ID of the sprint to which the work items should be added",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "get_sprint_id",
+            "API Description": "Returns the ID of the current sprint",
+            "API arguments": []
+        },
+        {
+            "API Name": "get_similar_work_items",
+            "API Description": "Returns a list of work items that are similar to the given work item",
+            "API arguments": [
+                {
+                    "Argument Name": "work_id",
+                    "Argument Description": "The ID of the work item for which you want to \ufb01nd similar items",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "search_object_by_name",
+            "API Description": "Given a search string, returns the id of a matching object in the system of record. If multiple matches are found, it returns the one where the con\ufb01dence is highest.",
+            "API arguments": [
+                {
+                    "Argument Name": "query",
+                    "Argument Description": "The search string, could be for example customer\u2019s name, part name, user name.",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "create_actionable_tasks_from_text",
+            "API Description": "Given a text, extracts actionable insights, and creates tasks for them, which are kind of a work item.",
+            "API arguments": [
+                {
+                    "Argument Name": "text",
+                    "Argument Description": "The text from which the actionable insights need to be created.",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "who_am_i",
+            "API Description": "Returns the ID of the current user",
+            "API arguments": []
+        }
+    ]
+}
