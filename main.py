@@ -20,9 +20,8 @@ import logging
 import json
 from data import example_doc_feedback as ex
 from data import parser_output as parser
-
-logging.basicConfig()
-logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
+import ast
+import re
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
@@ -33,6 +32,36 @@ thread = client.beta.threads.create()
 # ret_thread = client.beta.threads.create()
 
 RETRIEVER_INITIALIZED = False
+
+class QueryHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.generated_queries = ""
+
+    def emit(self, record):
+        if record.levelname == 'INFO' and 'Generated queries' in record.msg:
+            # Extract the text between '[' and ']'
+            match = re.search(r'\[([^]]+)\]', record.msg)
+            if match:
+                queries = match.group(1)
+                self.generated_queries = ""
+                try:
+                    queries_list = ast.literal_eval(queries)
+                    for query in queries_list:
+                        self.generated_queries += query + '\n'
+                except (ValueError, SyntaxError) as e:
+                    # Handle the exception as needed
+                    print(f"Error evaluating queries: {e}")
+                
+# Configure logging
+logging.basicConfig(filename='data/app.log', filemode='w', level=logging.WARNING)
+logger = logging.getLogger("langchain.retrievers.multi_query")
+logger.setLevel(logging.INFO)
+
+# Add the custom handler to the logger
+query_handler = QueryHandler()
+logger.addHandler(query_handler)
+
 
 def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
     with open(api_doc_path, 'r') as f:
@@ -178,7 +207,7 @@ def retriever(query: str):
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
     )
-    return unique_docs_hf
+    return unique_docs_hf, query_handler.generated_queries
 
 
 def generate_output(llm_in):
@@ -235,11 +264,15 @@ def get_feedback(input_query, model_output, documentation_txt):
 
 def pipeline(query: str):
     model_in = ex.llm_input + '\n\n'
-    retrieved_docs = retriever(query)
+    retrieved_docs, sub_queries = retriever(query)
+    
+    print(sub_queries)
+    
     doc_text = ''
     for doc in retrieved_docs:
         doc_text += doc.page_content + '\n\n'
-    
+
+    model_in += sub_queries + '\n\n'
     model_in += doc_text
     model_in += f'###Examples:\n{ex.examples}\n\n'
     model_in += f'###Query:\n{query}'

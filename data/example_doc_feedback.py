@@ -71,7 +71,7 @@ model_output = """$$PREV[0] = search_object_by_name(query=""Cust123"")
 $$PREV[1] = works_list(ticket.rev_org=""$$PREV[0]"", ticket.severity=[""high""], ticket.source_channel=[""slack""])
 $$PREV[2] = summarize_objects(objects=""$$PREV[1]"")"""
 
-llm_input = 'You are an intelligent AI agent for generating api calls given a user prompt. To answer a query, one or more api may need to be called. You are provided with api documentation and few examples of queries and their outputs. Read it carefully and understand it, as your output should strictly follow the format of the provided examples and documentation. The output should be such that if I run the api calls sequentially with those parameters then i will get correct output from the server. Remember to follow the format and only return the sequence of api calls and nothing else.'
+llm_input = 'You are an intelligent AI agent for generating api calls given a user prompt. To answer a query, one or more api may need to be called. You are provided with api documentation and few examples of queries and their outputs. Read it carefully and understand it, as your output should strictly follow the format of the provided examples and documentation. Also few sub-queries are presented which represent a breakdown of query into a sequence of tasks that you should perform to generate api sequence. The output should be such that if I run the api calls sequentially with those parameters then i will get correct output from the server. Remember to follow the format and only return the sequence of api calls and nothing else.'
 
 examples = '''###Examples:
 Query: Summarize issues similar to don:core:dvrv-us-1:devo/0:issue/1
