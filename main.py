@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 import time
+import requests
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -24,6 +25,7 @@ logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
+NGROK_LINK = 'https://adb1-34-32-253-133.ngrok.io'
 
 client = OpenAI()
 thread = client.beta.threads.create()
@@ -177,6 +179,12 @@ def retriever(query: str):
     )
     return unique_docs_hf
 
+def check_ans(query):
+    payload = {"query": query}
+    req = requests.post(
+        NGROK_LINK+'/predict/', json=payload)
+    return req.json()['text']
+
 
 def feedback_part1(documentation_txt, model_output, temperature = 0.2, max_tokens = 100):
     feedback_prompt1 = """You are an expert at analyzing API call sequences. Given an API call sequence, your task is to explain the task being performed by the API calls in small steps. Keep the steps as small as possible. Do not explain the API call, just output what it is doing. Output the small steps in points and nothing else. Here is the API documentation: 
@@ -250,6 +258,9 @@ async def root():
 
 @app.post("/api/query/", response_model=QueryOutput)
 async def process_query_endpoint(query_input: QueryInput):
+    # answerability = check_ans(query_input.query)
+    # if answerability == 'Unanswerable':
+    #     return {"isResponse": True, "text": "Sorry, I don't know the answer to that. Please try another question.", "code": {}}
     processed_text = process_query(query_input.query)
     pipeline_output = pipeline(query_input.query)
     return {"isResponse": True, "text": processed_text, "code": pipeline_output}
