@@ -257,7 +257,7 @@ def pipeline(query: str):
     output2 = generate_output(model_in2)
     print(output2)
     try:
-        return parser.function_to_json(output2)['Output']
+        return parser.function_to_json(output2)
     except:
         return {'Output': output2}
 
