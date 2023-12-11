@@ -70,3 +70,25 @@ input_query = "List all high severity tickets coming in from slack from customer
 model_output = """$$PREV[0] = search_object_by_name(query=""Cust123"")
 $$PREV[1] = works_list(ticket.rev_org=""$$PREV[0]"", ticket.severity=[""high""], ticket.source_channel=[""slack""])
 $$PREV[2] = summarize_objects(objects=""$$PREV[1]"")"""
+
+llm_input = 'You are an intelligent AI agent for generating api calls given a user prompt. To answer a query, one or more api may need to be called. You are provided with api documentation and few examples of queries and their outputs. Read it carefully and understand it, as your output should strictly follow the format of the provided examples and documentation. The output should be such that if I run the api calls sequentially with those parameters then i will get correct output from the server. Remember to follow the format and only return the sequence of api calls and nothing else.'
+
+examples = '''###Examples:
+Query: Summarize issues similar to don:core:dvrv-us-1:devo/0:issue/1
+Output: 
+$$PREV[0] = get_similar_work_items(work_id=don:core:dvrv-us-1:devo/0:issue/1)
+$$PREV[1] = summarize_objects(objects=$$PREV[0])
+Query: Find all of my "p3" priority issues and tickets in "support" stage for Rev organization "RevTech", summarize them.
+Output: 
+$$PREV[0] = whoami()
+$$PREV[1] = works_list(owned_by=$$PREV[0], issue.priority=["p2"], applies_to_part=["frontend"])
+$$PREV[2] = summarize_objects(objects=$$PREV[1])
+Query: Prioritize my P0 issues and add them to the current sprint
+Output: 
+$$PREV[0] = who_am_i()
+$$PREV[1] = works_list(issue.priority=["p0"], owned_by="$$PREV[0]")
+$$PREV[2] = prioritize_objects(objects="$$PREV[1]")
+$$PREV[3] = get_sprint_id()
+$$PREV[4] = add_work_items_to_sprint(work_ids="$$PREV[2]", sprint_id="$$PREV[3]")'''
+
+feedback_prompt = '''You are an intelligent agent that corrects api sequence code based on feedback. You are provided with documentation, examples and feedback, based on them generate the correct code. Remember to follow the format specified in the example and return just the api call sequence.'''

@@ -19,6 +19,7 @@ from sentence_transformers import SentenceTransformer
 import logging
 import json
 from data import example_doc_feedback as ex
+from data import parser_output_1 as parser
 
 logging.basicConfig()
 logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
@@ -179,6 +180,20 @@ def retriever(query: str):
     )
     return unique_docs_hf
 
+
+def generate_output(llm_in):
+    completion = client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": 'as'},
+            {"role": "user", "content": llm_in}
+        ],
+        temperature=0.2,
+        max_tokens = 250,
+    )
+    return completion.choices[0].message.content
+
+
 def check_ans(query):
     payload = {"query": query}
     req = requests.post(
@@ -219,14 +234,32 @@ def get_feedback(input_query, model_output, documentation_txt):
 
 
 def pipeline(query: str):
-    retrieved_str = ""
+    model_in = ex.llm_input + '\n\n'
     retrieved_docs = retriever(query)
+    doc_text = ''
     for doc in retrieved_docs:
-        retrieved_str += doc.page_content + '\n\n\n'
-    print(retrieved_str)
+        doc_text += doc.page_content + '\n\n'
     
-    feedback = get_feedback(ex.input_query, ex.model_output, ex.documentation_txt)
-    return {'retrieved_docs': retrieved_str, 'feedback': feedback}
+    model_in += doc_text
+    model_in += f'###Examples:\n{ex.examples}\n\n'
+    model_in += f'###Query:\n{query}'
+    
+    print(model_in)
+
+    output = generate_output(model_in)
+    
+    print(output)
+    
+    feedback = get_feedback(query, output, doc_text)
+    
+    model_in2 = ex.feedback_prompt + '\n\n' + doc_text +  f'###Examples:\n{ex.examples}\n\n' + f'###Output: {output}\n\n' + f'###Feedback: {feedback}\n\n' + f'###Query:\n{query}'
+    
+    output2 = generate_output(model_in2)
+    print(output2)
+    try:
+        return parser.function_to_json(output2)
+    except:
+        return {'Output': output2}
 
 app = FastAPI()
 

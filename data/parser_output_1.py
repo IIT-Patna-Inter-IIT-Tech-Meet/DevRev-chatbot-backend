@@ -71,4 +71,4 @@ def function_to_json(sample, index = True):
     data["Output"] = outputs
     data["Query"] = query
     
-    return data
+    return dict(data["Output"])
