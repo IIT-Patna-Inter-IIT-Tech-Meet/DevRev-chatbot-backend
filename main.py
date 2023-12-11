@@ -19,7 +19,7 @@ from sentence_transformers import SentenceTransformer
 import logging
 import json
 from data import example_doc_feedback as ex
-from data import parser_output_1 as parser
+from data import parser_output as parser
 
 logging.basicConfig()
 logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
@@ -74,44 +74,44 @@ def wait_on_run(run, thread):
 
 def process_query(query: str) -> str:
     # client = OpenAI()
-    # sys_prompt = 'You are a friendly chatbot. The user will either enquire or will have a natural conversation. Each query would be resolved by a different pipeline in the backend which will generate a sequence of API calls in json format. Your goal is to *just* generate brief text (upto 35 words) that precedes the actual answer. Do not make any assumptions but act as if you are looking into it.'
+    sys_prompt = 'You are a friendly chatbot. The user will either enquire or will have a natural conversation. Each query would be resolved by a different pipeline in the backend which will generate a sequence of API calls in json format. Your goal is to *just* generate brief text (upto 35 words) that precedes the actual answer. Do not make any assumptions but act as if you are looking into it. You do not have to resolve any query so just send only one message in reply.'
     
-    # completion = client.chat.completions.create(
-    #     model="gpt-3.5-turbo",
-    #     messages=[
-    #         {"role": "system", "content": sys_prompt},
-    #         {"role": "user", "content": query}
-    #     ]
-    # )
-    # return completion.choices[0].message.content
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": query}
+        ]
+    )
+    return completion.choices[0].message.content
 
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content=query
-    )
-    run = client.beta.threads.runs.create(
-        thread_id=thread.id,
-        assistant_id=ASSISTANT_ID,
-    )
+    # message = client.beta.threads.messages.create(
+    #     thread_id=thread.id,
+    #     role="user",
+    #     content=query
+    # )
+    # run = client.beta.threads.runs.create(
+    #     thread_id=thread.id,
+    #     assistant_id=ASSISTANT_ID,
+    # )
     
-    wait_on_run(run, thread)
+    # wait_on_run(run, thread)
     
-    messages = client.beta.threads.messages.list(
-        thread_id=thread.id,
-        order='desc',
-    )
+    # messages = client.beta.threads.messages.list(
+    #     thread_id=thread.id,
+    #     order='desc',
+    # )
     
-    print(messages)
-    idx, ite = -1, 0
-    for i, msg in enumerate(messages):
-        if msg.content[0].text.value == query:
-            idx += i
+    # print(messages)
+    # idx, ite = -1, 0
+    # for i, msg in enumerate(messages):
+    #     if msg.content[0].text.value == query:
+    #         idx += i
     
-    for msg in messages:
-        if ite == idx:
-            return msg.content[0].text.value
-        ite += 1
+    # for msg in messages:
+    #     if ite == idx:
+    #         return msg.content[0].text.value
+    #     ite += 1
 
 
 def retriever(query: str):
@@ -257,7 +257,7 @@ def pipeline(query: str):
     output2 = generate_output(model_in2)
     print(output2)
     try:
-        return parser.function_to_json(output2)
+        return parser.function_to_json(output2)['Output']
     except:
         return {'Output': output2}
 
