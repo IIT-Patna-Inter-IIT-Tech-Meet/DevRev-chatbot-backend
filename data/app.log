@@ -1,2 +1,0 @@
-WARNING:chromadb.segment.impl.vector.local_persistent_hnsw:Delete of nonexisting embedding ID: 
-WARNING:chromadb.segment.impl.metadata.sqlite:Delete of nonexisting embedding ID: 

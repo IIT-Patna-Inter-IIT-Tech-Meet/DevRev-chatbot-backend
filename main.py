@@ -25,12 +25,12 @@ import ast
 import re
 import pickle
 from FlagEmbedding import FlagReranker
-
 import tiktoken
+import random
+
 
 encoding = tiktoken.get_encoding("cl100k_base")
 encoding = tiktoken.encoding_for_model("gpt-4-1106-preview")
-import random
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
@@ -44,7 +44,6 @@ client = OpenAI()
 RETRIEVER_INITIALIZED = False
 
 reranker = FlagReranker('BAAI/bge-reranker-base', use_fp16=False) 
-
 
 
 class QueryHandler(logging.Handler):
@@ -67,7 +66,7 @@ class QueryHandler(logging.Handler):
                     # Handle the exception as needed
                     print(f"Error evaluating queries: {e}")
                 
-# Configure logging
+                
 logging.basicConfig(filename='data/app.log', filemode='w', level=logging.WARNING)
 logger = logging.getLogger("langchain.retrievers.multi_query")
 logger.setLevel(logging.INFO)
@@ -78,15 +77,12 @@ logger.addHandler(query_handler)
 
 
 def remove_document(api_name):
-    # Load doc from file
     with open('data/doc.pkl', 'rb') as file:
         doc = pickle.load(file)
 
-    # Load meta from file
     with open('data/meta.pkl', 'rb') as file:
         meta = pickle.load(file)
 
-    # Load id from file
     with open('data/id.pkl', 'rb') as file:
         id = pickle.load(file)
     
@@ -106,15 +102,12 @@ def remove_document(api_name):
     meta.pop(num)
     id.pop(num)
     
-    # Save doc to file
     with open('data/doc.pkl', 'wb') as file:
         pickle.dump(doc, file)
 
-    # Save meta to file
     with open('data/meta.pkl', 'wb') as file:
         pickle.dump(meta, file)
 
-    # Save id to file
     with open('data/id.pkl', 'wb') as file:
         pickle.dump(id, file)
     
@@ -122,15 +115,12 @@ def remove_document(api_name):
         
 
 def update_document(api_name, document):
-    # Load doc from file
     with open('data/doc.pkl', 'rb') as file:
         doc = pickle.load(file)
 
-    # Load meta from file
     with open('data/meta.pkl', 'rb') as file:
         meta = pickle.load(file)
 
-    # Load id from file
     with open('data/id.pkl', 'rb') as file:
         id = pickle.load(file)
     
@@ -150,15 +140,12 @@ def update_document(api_name, document):
     
     doc[num] = document
     
-    # Save doc to file
     with open('data/doc.pkl', 'wb') as file:
         pickle.dump(doc, file)
 
-    # Save meta to file
     with open('data/meta.pkl', 'wb') as file:
         pickle.dump(meta, file)
 
-    # Save id to file
     with open('data/id.pkl', 'wb') as file:
         pickle.dump(id, file)
     
@@ -166,15 +153,12 @@ def update_document(api_name, document):
     
 
 def add_document(api_name, document):
-    # Load doc from file
     with open('data/doc.pkl', 'rb') as file:
         doc = pickle.load(file)
 
-    # Load meta from file
     with open('data/meta.pkl', 'rb') as file:
         meta = pickle.load(file)
 
-    # Load id from file
     with open('data/id.pkl', 'rb') as file:
         id = pickle.load(file)
     
@@ -189,15 +173,12 @@ def add_document(api_name, document):
     id.append(add_id)
     meta.append({'API': api_name})
     
-    # Save doc to file
     with open('data/doc.pkl', 'wb') as file:
         pickle.dump(doc, file)
 
-    # Save meta to file
     with open('data/meta.pkl', 'wb') as file:
         pickle.dump(meta, file)
 
-    # Save id to file
     with open('data/id.pkl', 'wb') as file:
         pickle.dump(id, file)
     
@@ -218,99 +199,88 @@ def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
                 doc_format += f"API Argument: {j['Argument Name']}\n"
                 doc_format += f"Argument Description: {j['Argument Description']}\n"
                 doc_format += f"Return Type: {j['Argument Type']}\n"
-                # doc_format += f"Value Examples: {j['Argument Value Examples']}\n"
-                
-    # with open(api_example_path, 'r') as f:
-    #     ex_data = json.load(f)
-    
-    # ex_format = '\n\nExamples:\n'
-    # for query in ex_data:
-    #     if api_name in query['Output']:
-    #         ex_format += f"###Query: {query['Query']}\n"
-    #         ex_format += f"###Output: {query['Output']}\n"
-    # return doc_format + ex_format
     
     return doc_format
 
-
+# initialize the retriever and re-rankers
 if not RETRIEVER_INITIALIZED:
-        class LineList(BaseModel):
-            lines: List[str] = Field(description="Lines of text")
+    class LineList(BaseModel):
+        lines: List[str] = Field(description="Lines of text")
 
-        class LineListOutputParser(PydanticOutputParser):
-            def __init__(self) -> None:
-                super().__init__(pydantic_object=LineList)
+    class LineListOutputParser(PydanticOutputParser):
+        def __init__(self) -> None:
+            super().__init__(pydantic_object=LineList)
 
-            def parse(self, text: str) -> LineList:
-                lines = text.strip().split("\n")
-                return LineList(lines=lines)
-        api_list = []
-        with open('./data/api_documentation.json', 'r') as f:
-            data = json.load(f)
-        for i in data['ToolList']:
-            api_list.append(i['API Name'])
-            
-        doc = []
-        meta = []
-        id = []
-        for itr, i in enumerate(api_list):
-            api = {}
-            doc.append(generate_document('./data/api_documentation.json', './data/examples.json', i))
-            api["API"] = i
-            meta.append(api)
-            id.append(f"ID{itr}")
-
-        output_parser = LineListOutputParser()
+        def parse(self, text: str) -> LineList:
+            lines = text.strip().split("\n")
+            return LineList(lines=lines)
+    api_list = []
+    with open('./data/api_documentation.json', 'r') as f:
+        data = json.load(f)
+    for i in data['ToolList']:
+        api_list.append(i['API Name'])
         
-        QUERY_PROMPT = PromptTemplate(
-            input_variables=["question"],
-            # template = "Repeat the word apple two times, like, \napple\napple",
-            template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
-            Original question: {question}""",
-        )
-        llm = ChatOpenAI(temperature=0)
-        llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
-        global client_hf
-        client_hf = chromadb.PersistentClient(path="./hf_db")
-        sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
-        global collection_hf
-        collection_hf = client_hf.get_or_create_collection(name="hf_check_1", metadata={"hnsw:space": "cosine"},embedding_function = sentence_transformer_ef)
-        collection_hf.upsert(
-            documents=doc,
-            metadatas=meta,
-            ids=id
-        )
+    doc = []
+    meta = []
+    id = []
+    for itr, i in enumerate(api_list):
+        api = {}
+        doc.append(generate_document('./data/api_documentation.json', './data/examples.json', i))
+        api["API"] = i
+        meta.append(api)
+        id.append(f"ID{itr}")
 
-        print(f'Total docs detected after update/restart: {collection_hf.count()}')
-        
-        embeddings_hf = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en-v1.5"
-        )
+    output_parser = LineListOutputParser()
+    
+    QUERY_PROMPT = PromptTemplate(
+        input_variables=["question"],
+        # template = "Repeat the word apple two times, like, \napple\napple",
+        template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
+        Original question: {question}""",
+    )
+    llm = ChatOpenAI(temperature=0)
+    llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
+    global client_hf
+    client_hf = chromadb.PersistentClient(path="./hf_db")
+    sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
+    global collection_hf
+    collection_hf = client_hf.get_or_create_collection(name="hf_check_1", metadata={"hnsw:space": "cosine"},embedding_function = sentence_transformer_ef)
+    collection_hf.upsert(
+        documents=doc,
+        metadatas=meta,
+        ids=id
+    )
 
-        vectorstore_hf = Chroma(
-            collection_name="hf_check_1",
-            embedding_function=embeddings_hf,
-            persist_directory = "./hf_db",
-        )
-        
-        global retriever_from_llm
-        retriever_from_llm = MultiQueryRetriever(
-            retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
-        )
-        
-        RETRIEVER_INITIALIZED = True
-        
-        # Save doc to file
-        with open('data/doc.pkl', 'wb') as file:
-            pickle.dump(doc, file)
+    print(f'Total docs detected after update/restart: {collection_hf.count()}')
+    
+    embeddings_hf = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-base-en-v1.5"
+    )
 
-        # Save meta to file
-        with open('data/meta.pkl', 'wb') as file:
-            pickle.dump(meta, file)
+    vectorstore_hf = Chroma(
+        collection_name="hf_check_1",
+        embedding_function=embeddings_hf,
+        persist_directory = "./hf_db",
+    )
+    
+    global retriever_from_llm
+    retriever_from_llm = MultiQueryRetriever(
+        retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
+    )
+    
+    RETRIEVER_INITIALIZED = True
+    
+    # Save doc to file
+    with open('data/doc.pkl', 'wb') as file:
+        pickle.dump(doc, file)
 
-        # Save id to file
-        with open('data/id.pkl', 'wb') as file:
-            pickle.dump(id, file)
+    # Save meta to file
+    with open('data/meta.pkl', 'wb') as file:
+        pickle.dump(meta, file)
+
+    # Save id to file
+    with open('data/id.pkl', 'wb') as file:
+        pickle.dump(id, file)
 
 
 def generate_document_from_api(api_name: str, api_desc: str, api_args: list):
@@ -385,12 +355,9 @@ def extract_api_info(unique_docs):
         description_match = re.search(r'###Description: (.+?)(?=\n\n|\Z)', val.page_content, re.DOTALL)
         arguments_match = re.findall(r'API Argumet: (.+?)\nArgument Description: (.+?)\nReturn Type: (.+?)(?=\n\n|\Z)', val.page_content, re.DOTALL)
 
-        print(api_name_match, description_match, arguments_match)
-
         formatted_string = "{}\n{}\n{}".format(api_name_match.group(0), description_match.group(0), '\n'.join([f'{arg[0]}\nArgument Description: {arg[1]}\nReturn Type: {arg[2]}' for arg in arguments_match]))        
         
         struct = {"id":idx, "passage":formatted_string}
-        # print(struct)
         api_info_list.append(struct)
         
     return api_info_list
@@ -443,103 +410,30 @@ def select_examples(unique_docs_hf):
         return ex.examples
     
     
-    
 def retriever(query: str):
-    if not RETRIEVER_INITIALIZED:
-        class LineList(BaseModel):
-            lines: List[str] = Field(description="Lines of text")
-
-        class LineListOutputParser(PydanticOutputParser):
-            def __init__(self) -> None:
-                super().__init__(pydantic_object=LineList)
-
-            def parse(self, text: str) -> LineList:
-                lines = text.strip().split("\n")
-                return LineList(lines=lines)
-        api_list = []
-        with open('./data/api_documentation.json', 'r') as f:
-            data = json.load(f)
-        for i in data['ToolList']:
-            api_list.append(i['API Name'])
-            
-        doc = []
-        meta = []
-        id = []
-        for itr, i in enumerate(api_list):
-            api = {}
-            doc.append(generate_document('./data/api_documentation.json', './data/examples.json', i))
-            api["API"] = i
-            meta.append(api)
-            id.append(f"ID{itr}")
-
-        output_parser = LineListOutputParser()
-        
-        QUERY_PROMPT = PromptTemplate(
-            input_variables=["question"],
-            # template = "Repeat the word apple two times, like, \napple\napple",
-            template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
-            Original question: {question}""",
-        )
-        llm = ChatOpenAI(temperature=0)
-        llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
-        global client_hf
-        client_hf = chromadb.PersistentClient(path="./hf_db")
-        sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
-        global collection_hf
-        collection_hf = client_hf.get_or_create_collection(name="hf_check_1", metadata={"hnsw:space": "cosine"},embedding_function = sentence_transformer_ef)
-        collection_hf.upsert(
-            documents=doc,
-            metadatas=meta,
-            ids=id
-        )
-
-        print(f'Total docs detected after update/restart: {collection_hf.count()}')
-        
-        embeddings_hf = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en-v1.5"
-        )
-
-        vectorstore_hf = Chroma(
-            collection_name="hf_check_1",
-            embedding_function=embeddings_hf,
-            persist_directory = "./hf_db",
-        )
-        
-        global retriever_from_llm
-        retriever_from_llm = MultiQueryRetriever(
-            retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
-        )
-        
-        RETRIEVER_INITIALIZED = True
-        
-        # Save doc to file
-        with open('data/doc.pkl', 'wb') as file:
-            pickle.dump(doc, file)
-
-        # Save meta to file
-        with open('data/meta.pkl', 'wb') as file:
-            pickle.dump(meta, file)
-
-        # Save id to file
-        with open('data/id.pkl', 'wb') as file:
-            pickle.dump(id, file)
-    
-    
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
     )
-    # top_k = len(unique_docs_hf) + 2
-    # query = query_handler.generated_queries
+    top_k = len(unique_docs_hf) + 2
+    query = query_handler.generated_queries
 
-    # passages = extract_api_info(unique_docs_hf)
-    # re_ranked_passages = re_rank(passages, query, top_k)
+    passages = extract_api_info(unique_docs_hf)
+    re_ranked_passages = re_rank(passages, query, top_k)
 
-    # retrieved_list = []
-    # for p in re_ranked_passages:
-    #     api_des = p["passage"]
-    #     retrieved_list.append(api_des)
+    retrieved_list = []
+    for p in re_ranked_passages:
+        api_des = p["passage"]
+        retrieved_list.append(api_des)
     
-    return unique_docs_hf, query_handler.generated_queries, select_examples(unique_docs_hf)
+    selected_passages = []
+    for passage in retrieved_list:
+        for doc in unique_docs_hf:
+            if passage in doc.page_content:
+                selected_passages.append(doc)
+                
+    print(f'Selected passages: {selected_passages}')
+    
+    return selected_passages, query_handler.generated_queries, select_examples(unique_docs_hf)
 
 
 def generate_output(llm_in, temperature = 0.2):
@@ -563,7 +457,6 @@ def check_ans(query):
 
 
 def feedback_part1(documentation_and_examples, input_query, model_output, temperature = 0.1, max_tokens = 250):
-
     updated_prompt = """You are an expert at analyzing API call sequences. Given an API call sequence and the input query, your job is to explain the task being performed by the API calls in small steps and determine whether the given query is answerable or unanswerable. Do not explain the API call, just output what it is doing. Output the small steps in points and nothing else. Keep the small steps as short and precise as possible. In order for the query to be classified as answerable, there should exist a correct sequence of API calls from the given set of API tools capable of solving the given query. If the query is unanswerable, do not break the API sequence into small steps. Just output a single word Answerable/Unanswerable. Look closely into the API tools' allowed arguments before deciding, for example: sometimes queries such as extract the 'top 5' might be unanswerable since the given API tools might not have any argument which can filter out a specified set of results, and using things like 'slice' would be wrong as it is not a valid API argument! Here is the API documentation along with some examples: """ + documentation_and_examples + """\n Here is the input query: """ + input_query + """\n here is the API call sequence: """ + model_output + """\n Keep your output as concise as possible and to the point."""
 
     length = len(encoding.encode(str(updated_prompt)))
@@ -678,10 +571,6 @@ def pipeline(query: str):
     
     print(f"Total time in pipeline: {retrieval_time + generation_time + feedback_generation_time}s")
     
-    #remove_document('prioritize_objects')
-    #add_document('Search', 'Lets find this')
-    
-    # print(collection_hf.query(query_texts=["Lets find this"],n_results=1))
     
     if 'unanswerable' in output2.lower() or 'unanswerable' in output.lower() or 'unanswerable' in feedback.lower():
         output2 = 'Unanswerable'

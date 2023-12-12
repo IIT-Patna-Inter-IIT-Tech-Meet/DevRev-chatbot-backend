@@ -5,19 +5,19 @@
     },
     {
         "Query": "Prioritize my P0 issues and add them to the current sprint",
-        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(issue.priority=[\"p0\"], owned_by=[\"$$PREV[0]\"],type=[\"issue\"])\n$$PREV[2] = prioritize_objects(objects=\"$$PREV[1]\")\n$$PREV[3] = get_sprint_id()\n$$PREV[4] = add_work_items_to_sprint(work_ids=\"$$PREV[2]\", sprint_id=\"$$PREV[3]\")"
+        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(issue.priority=[\"p0\"], owned_by=[\"$$PREV[0]\"], type=[\"issue\"])\n$$PREV[2] = prioritize_objects(objects=\"$$PREV[1]\")\n$$PREV[3] = get_sprint_id()\n$$PREV[4] = add_work_items_to_sprint(work_ids=\"$$PREV[2]\", sprint_id=\"$$PREV[3]\")"
     },
     {
         "Query": "Summarize high severity tickets from the customer UltimateCustomer",
-        "Output": "$$PREV[0] = search_object_by_name(query=\"UltimateCustomer\")\n$$PREV[1] = works_list(ticket.rev_org=[\"$$PREV[0]\"],ticket.severity=[\"high\"],type=[\"ticket\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
+        "Output": "$$PREV[0] = search_object_by_name(query=\"UltimateCustomer\")\n$$PREV[1] = works_list(ticket.rev_org=[\"$$PREV[0]\"], ticket.severity=[\"high\"], type=[\"ticket\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
     },
     {
         "Query": "What are my all issues in the triage stage under part FEAT-123? Summarize them.",
-        "Output": "$$PREV[0] = whoami()\n$$PREV[1] = works_list(stage.name=[\"triage\"], applies_to_part=[\"FEAT-123\"], owned_by=[\"$$PREV[0]\"],type=[\"issue\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
+        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(stage.name=[\"triage\"], applies_to_part=[\"FEAT-123\"], owned_by=[\"$$PREV[0]\"], type=[\"issue\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
     },
     {
         "Query": "List all high severity tickets coming in from slack from customer Cust123 and generate a summary of them.",
-        "Output": "$$PREV[0] = search_object_by_name(query=\"Cust123\")\n$$PREV[1] = works_list(ticket.rev_org=[\"$$PREV[0]\"], ticket.severity=[\"high\"], ticket.source_channel=[\"slack\"],type=[\"ticket\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
+        "Output": "$$PREV[0] = search_object_by_name(query=\"Cust123\")\n$$PREV[1] = works_list(ticket.rev_org=[\"$$PREV[0]\"], ticket.severity=[\"high\"], ticket.source_channel=[\"slack\"], type=[\"ticket\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
     },
     {
         "Query": "Given a customer meeting transcript T, create action items and add them to my current sprint",
@@ -29,7 +29,7 @@
     },
     {
         "Query": "Identify the current user's issues that are in the \"review\" stage with \"p0\" priority, prioritize them, and add them to the current sprint.",
-        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(stage.name=[\"review\"], owned_by=[\"$$PREV[0]\"], issue.priority=[\"p0\"],type=[\"issue\"])\n$$PREV[2] = prioritize_objects(objects=\"$$PREV[1]\")\n$$PREV[3] = get_sprint_id()\n$$PREV[4] = add_work_items_to_sprint(work_ids=\"$$PREV[2]\", sprint_id=\"$$PREV[3]\")"
+        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(stage.name=[\"review\"], owned_by=[\"$$PREV[0]\"], issue.priority=[\"p0\"], type=[\"issue\"])\n$$PREV[2] = prioritize_objects(objects=\"$$PREV[1]\")\n$$PREV[3] = get_sprint_id()\n$$PREV[4] = add_work_items_to_sprint(work_ids=\"$$PREV[2]\", sprint_id=\"$$PREV[3]\")"
     },
     {
         "Query": "Find work items related to the part \"EngineModule\", created by user \"JohnDoe\", and add those to my current sprint.",
@@ -41,11 +41,11 @@
     },
     {
         "Query": "List all my issues and tickets created this month, summarize them, and identify any action items to prioritize.",
-        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(created_by=[\"$$PREV[0]\"],type=[\"issue\",\"ticket\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")\n$$PREV[3] = create_actionable_tasks_from_text(text=\"$$PREV[2]\")\n$$PREV[4] = prioritize_objects(objects=\"$$PREV[3]\")"
+        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(created_by=[\"$$PREV[0]\"], type=[\"issue\",\"ticket\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")\n$$PREV[3] = create_actionable_tasks_from_text(text=\"$$PREV[2]\")\n$$PREV[4] = prioritize_objects(objects=\"$$PREV[3]\")"
     },
     {
         "Query": "Find work items for the part \"engine\" created by user \"JohnDoe\", summarize them, and return the most urgent ones.",
-        "Output": " $$PREV[0] = works_list(applies_to_part=[\"engine\"], created_by=[\"JohnDoe\"])\n $$PREV[1] = summarize_objects(objects=\"$$PREV[0]\")\n $$PREV[2] = prioritize_objects(objects=\"$$PREV[1]\")"
+        "Output": "$$PREV[0] = works_list(applies_to_part=[\"engine\"], created_by=[\"JohnDoe\"])\n $$PREV[1] = summarize_objects(objects=\"$$PREV[0]\")\n $$PREV[2] = prioritize_objects(objects=\"$$PREV[1]\")"
     },
     {
         "Query": "Prioritize work items owned by \"\"User123\" that are in the \"QA\" stage, and are of type \"issue\", then add those to the current sprint.",
@@ -57,10 +57,10 @@
     },
     {
         "Query": "Locate work items by 'Eve' related to 'SalesPart', summarize those tickets with 'medium' severity and then prioritize them for the sprint.",
-        "Output": "$$PREV[0] = works_list(created_by=[\"Eve\"], applies_to_part=[\"SalesPart\"], ticket.severity=[\"medium\"],type=[\"ticket\"])$$PREV[1] = summarize_objects(objects=\"$$PREV[0]\")\n$$PREV[2] = prioritize_objects(objects=\"$$PREV[0]\")\n$$PREV[3] = get_sprint_id()\n$$PREV[4] = add_work_items_to_sprint(work_ids=\"$$PREV[2]\", sprint_id=\"$$PREV[3]\")"
+        "Output": "$$PREV[0] = works_list(created_by=[\"Eve\"], applies_to_part=[\"SalesPart\"], ticket.severity=[\"medium\"], type=[\"ticket\"])\n$$PREV[1] = summarize_objects(objects=\"$$PREV[0]\")\n$$PREV[2] = prioritize_objects(objects=\"$$PREV[0]\")\n$$PREV[3] = get_sprint_id()\n$$PREV[4] = add_work_items_to_sprint(work_ids=\"$$PREV[2]\", sprint_id=\"$$PREV[3]\")"
     },
     {
         "Query": "Find all of my \"p3\" priority issues and tickets in \"support\" stage for Rev organization \"RevTech\", summarize them.",
-        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(owned_by=[\"$$PREV[0]\"], issue.priority=[\"p3\"], stage.name=[\"support\"],ticket.rev_org=[\"RevTech\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
+        "Output": "$$PREV[0] = who_am_i()\n$$PREV[1] = works_list(owned_by=[\"$$PREV[0]\"], issue.priority=[\"p3\"], stage.name=[\"support\"], ticket.rev_org=[\"RevTech\"])\n$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")"
     }
 ]
