@@ -191,6 +191,8 @@ def retriever(query: str):
             ids=id
         )
         
+        print(collection_hf.count())
+        
         embeddings_hf = HuggingFaceEmbeddings(
             model_name="BAAI/bge-base-en-v1.5"
         )

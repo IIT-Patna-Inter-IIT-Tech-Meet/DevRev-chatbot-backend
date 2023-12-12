@@ -1,0 +1,92 @@
+{
+    "ToolList": [
+        {
+            "API Name": "summarize_objects",
+            "API Description": "Summarizes a list of objects. The logic of how to summarize a particular object type is an internal implementation detail.",
+            "API arguments": [
+                {
+                    "Argument Name": "objects",
+                    "Argument Description": "List of objects to summarize",
+                    "Argument Type": "array of objects",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "prioritize_objects",
+            "API Description": "Returns a list of objects sorted by priority. The logic of what constitutes priority for a given object is an internal implementation detail.",
+            "API arguments": [
+                {
+                    "Argument Name": "objects",
+                    "Argument Description": "A list of objects to be prioritized",
+                    "Argument Type": "array of objects",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "add_work_items_to_sprint",
+            "API Description": "Adds the given work items to the sprint",
+            "API arguments": [
+                {
+                    "Argument Name": "work_ids",
+                    "Argument Description": "A list of work item IDs to be added to the sprint.",
+                    "Argument Type": "array of strings",
+                    "Argument Value Examples": []
+                },
+                {
+                    "Argument Name": "sprint_id",
+                    "Argument Description": "The ID of the sprint to which the work items should be added",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "get_sprint_id",
+            "API Description": "Returns the ID of the current sprint",
+            "API arguments": []
+        },
+        {
+            "API Name": "get_similar_work_items",
+            "API Description": "Returns a list of work items that are similar to the given work item",
+            "API arguments": [
+                {
+                    "Argument Name": "work_id",
+                    "Argument Description": "The ID of the work item for which you want to \ufb01nd similar items",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "search_object_by_name",
+            "API Description": "Given a search string, returns the id of a matching object in the system of record. If multiple matches are found, it returns the one where the con\ufb01dence is highest.",
+            "API arguments": [
+                {
+                    "Argument Name": "query",
+                    "Argument Description": "The search string, could be for example customer\u2019s name, part name, user name.",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "create_actionable_tasks_from_text",
+            "API Description": "Given a text, extracts actionable insights, and creates tasks for them, which are kind of a work item.",
+            "API arguments": [
+                {
+                    "Argument Name": "text",
+                    "Argument Description": "The text from which the actionable insights need to be created.",
+                    "Argument Type": "string",
+                    "Argument Value Examples": []
+                }
+            ]
+        },
+        {
+            "API Name": "who_am_i",
+            "API Description": "Returns the ID of the current user",
+            "API arguments": []
+        }
+    ]
+}
