@@ -13,22 +13,23 @@ from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.output_parsers import PydanticOutputParser
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings, CohereEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from typing import List
 from sentence_transformers import SentenceTransformer
 import logging
 import json
 from data import example_doc_feedback as ex
 from data import parser_output as parser
+from data import example_and_tool_db as db
 import ast
 import re
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
 NGROK_LINK = 'https://adb1-34-32-253-133.ngrok.io'
-OPENAPIKEY = 'XXXXXXXXXXXXXXXXXXXXX'
+# OPENAPIKEY = 'XXXXXXXXXXXXXXXXXXXXX'
 
-client = OpenAI(api_key=OPENAPIKEY)
+client = OpenAI()
 thread = client.beta.threads.create()
 # ret_thread = client.beta.threads.create()
 
@@ -102,6 +103,7 @@ def wait_on_run(run, thread):
     return run
 
 
+
 def process_query(query: str) -> str:
     # client = OpenAI()
     sys_prompt = 'You are a friendly chatbot. The user will either enquire or will have a natural conversation. Each query would be resolved by a different pipeline in the backend which will generate a sequence of API calls in json format. Your goal is to *just* generate brief text (upto 35 words) that precedes the actual answer. Do not make any assumptions but act as if you are looking into it. You do not have to resolve any query so just send only one message in reply.'
@@ -145,6 +147,7 @@ def process_query(query: str) -> str:
 
 
 def retriever(query: str):
+    global RETRIEVER_INITIALIZED
     if not RETRIEVER_INITIALIZED:
         class LineList(BaseModel):
             lines: List[str] = Field(description="Lines of text")
@@ -180,19 +183,19 @@ def retriever(query: str):
             template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
             Original question: {question}""",
         )
-        llm = ChatOpenAI(temperature=0, openai_api_key=OPENAPIKEY)
+        llm = ChatOpenAI(temperature=0)
         llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
-        
+        global client_hf
         client_hf = chromadb.PersistentClient(path="./hf_db")
         sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
         collection_hf = client_hf.get_or_create_collection(name="hf_check_1", embedding_function = sentence_transformer_ef)
-        collection_hf.add(
+        collection_hf.upsert(
             documents=doc,
             metadatas=meta,
             ids=id
         )
         
-        print(collection_hf.count())
+        print(f'Total docs detected after update/restart: {collection_hf.count()}')
         
         embeddings_hf = HuggingFaceEmbeddings(
             model_name="BAAI/bge-base-en-v1.5"
@@ -201,11 +204,13 @@ def retriever(query: str):
         vectorstore_hf = Chroma(
             collection_name="hf_check_1",
             embedding_function=embeddings_hf,
-            persist_directory = "./hf_db"
+            persist_directory = "./hf_db",
         )
+        global retriever_from_llm
         retriever_from_llm = MultiQueryRetriever(
             retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
         )
+        RETRIEVER_INITIALIZED = True
 
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
@@ -307,6 +312,7 @@ def pipeline(query: str):
     print(output2)
     
     print(f"Total time in pipeline: {retrieval_time + generation_time + feedback_generation_time}s")
+    
     
     if 'unanswerable' in output2.lower() or 'unanswerable' in output.lower() or 'unanswerable' in feedback.lower():
         output2 = 'Unanswerable'

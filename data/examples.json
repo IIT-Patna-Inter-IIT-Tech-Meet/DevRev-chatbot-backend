@@ -62,13 +62,5 @@
     {
         "Query": "Find all of my \"p3\" priority issues and tickets in \"support\" stage for Rev organization \"RevTech\", summarize them.",
         "Output": "$$PREV[0] = whoami()\n$$PREV[1] = works_list(owned_by=$$PREV[0], issue.priority=[\"p2\"], applies_to_part=[\"frontend\"])\n$$PREV[2] = summarize_objects(objects=$$PREV[1])"
-    },
-    {
-        "Query": "Search for the \"DatabaseRefactor\" part, filter work items by that part with high priority, prioritize those work items, and add them to the solar system along with Jupiter.",
-        "Output": "Unanswerable"
-    },
-    {
-        "Query": "Who are the work items which can be used to solve the Solar System?",
-        "Output": "Unanswerable"
     }
 ]
