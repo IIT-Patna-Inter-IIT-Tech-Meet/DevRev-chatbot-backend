@@ -26,8 +26,9 @@ import re
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
 NGROK_LINK = 'https://adb1-34-32-253-133.ngrok.io'
+OPENAPIKEY = 'XXXXXXXXXXXXXXXXXXXXX'
 
-client = OpenAI()
+client = OpenAI(api_key=OPENAPIKEY)
 thread = client.beta.threads.create()
 # ret_thread = client.beta.threads.create()
 
@@ -179,7 +180,7 @@ def retriever(query: str):
             template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
             Original question: {question}""",
         )
-        llm = ChatOpenAI(temperature=0)
+        llm = ChatOpenAI(temperature=0, openai_api_key=OPENAPIKEY)
         llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
         
         client_hf = chromadb.PersistentClient(path="./hf_db")
