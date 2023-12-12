@@ -4,3 +4,4 @@ langchain==0.0.332
 sentence_transformers
 openai==1.3.8
 FlagEmbedding==1.1.6
+tiktoken

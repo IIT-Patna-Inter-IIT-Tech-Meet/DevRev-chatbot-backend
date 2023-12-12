@@ -30,6 +30,7 @@ import tiktoken
 
 encoding = tiktoken.get_encoding("cl100k_base")
 encoding = tiktoken.encoding_for_model("gpt-4-1106-preview")
+import random
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
@@ -336,6 +337,30 @@ def re_rank(passages_with_id_list, query, top_k):
         return passages_with_id_and_scores_list[:top_k]
 
 
+def select_examples(unique_docs_hf):
+    ex_name = filter_api_names(unique_docs_hf)
+    with open('./data/examples.json', 'r') as f:
+        exam = json.load(f)
+    with open('data/meta.pkl', 'rb') as file:
+        meta = pickle.load(file)
+    current = [i['API'] for i in meta]
+    avail = [i for i in ex_name if i in current]
+    print(avail)
+    to_select = set()
+    for x in exam:
+        for api in avail:
+            if api in x['Output']:
+                qu = f"Query: {x['Query']}\n"
+                qu += f"Output: {x['Output']}"
+                to_select.add(qu)
+    if len(to_select) >= 3:
+        selected = random.choices(list(to_select), k = 3)
+        return "\n".join(selected)
+    else:
+        return ex.examples
+    
+    
+    
 def retriever(query: str):
     global RETRIEVER_INITIALIZED
     if not RETRIEVER_INITIALIZED:
@@ -420,18 +445,18 @@ def retriever(query: str):
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
     )
-    top_k = len(unique_docs_hf) + 2
-    query = query_handler.generated_queries
+    # top_k = len(unique_docs_hf) + 2
+    # query = query_handler.generated_queries
 
-    passages = extract_api_info(unique_docs_hf)
-    re_ranked_passages = re_rank(passages, query, top_k)
+    # passages = extract_api_info(unique_docs_hf)
+    # re_ranked_passages = re_rank(passages, query, top_k)
 
-    retrieved_list = []
-    for p in re_ranked_passages:
-        api_des = p["passage"]
-        retrieved_list.append(api_des)
-    print(unique_docs_hf)
-    return unique_docs_hf, query_handler.generated_queries
+    # retrieved_list = []
+    # for p in re_ranked_passages:
+    #     api_des = p["passage"]
+    #     retrieved_list.append(api_des)
+    
+    return unique_docs_hf, query_handler.generated_queries, select_examples(unique_docs_hf)
 
 
 def generate_output(llm_in, temperature = 0.2):
@@ -510,7 +535,9 @@ def pipeline(query: str):
     print("Starting retrieval...")
     
     model_in = ex.llm_input + '\n\n'
-    retrieved_docs, sub_queries = retriever(query)
+    retrieved_docs, sub_queries, selected = retriever(query)
+    
+    # print(f'selected examples {selected}')
     
     retrieval_time = time.time() - start_time
     print(f"Retrieval Time: {retrieval_time} seconds")
@@ -521,7 +548,7 @@ def pipeline(query: str):
 
     model_in += sub_queries + '\n\n'
     model_in += doc_text
-    model_in += f'###Examples:\n{ex.examples}\n\n'
+    model_in += f'###Examples:\n{selected}\n\n'
     model_in += f'###Query:\n{query}'
 
     length = len(encoding.encode(str(model_in)))
@@ -538,12 +565,12 @@ def pipeline(query: str):
     
     print(output)
     
-    doc_and_examples = doc_text + '\n\nHere are some examples: \n' + ex.examples
+    doc_and_examples = doc_text + '\n\nHere are some examples: \n' + selected
     feedback = get_feedback(query, output, doc_and_examples)
     print("Feedback: ", feedback)
     
     start_time = time.time()
-    model_in2 = ex.feedback_prompt + '\n\n' + doc_text + f'###Examples:\n{ex.examples}\n\n' + f'###Output: {output}\n\n' + f'###Feedback: {feedback}\n\n' + f'###Query:\n{query}'
+    model_in2 = ex.feedback_prompt + '\n\n' + doc_text + f'###Examples:\n{selected}\n\n' + f'###Output: {output}\n\n' + f'###Feedback: {feedback}\n\n' + f'###Query:\n{query}'
     
     length = len(encoding.encode(str(model_in2)))
     print("model_in2 token length: ", length)
