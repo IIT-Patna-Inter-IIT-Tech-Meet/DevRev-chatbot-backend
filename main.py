@@ -614,6 +614,10 @@ class AddToolType(BaseModel):
     apiName: str
     apiDesc: str
     names: list
+    
+
+class RemoveToolType(BaseModel):
+    apiName: str
 
 
 @app.get("/")
@@ -650,4 +654,10 @@ async def process_addtool(add_tool_input: AddToolType):
           add_tool_input.apiDesc, add_tool_input.names))
     update_document(add_tool_input.apiName, generate_document_from_api(
         add_tool_input.apiName, add_tool_input.apiDesc, add_tool_input.names))
+    return {"success": True}
+
+@app.post('/api/removetool/', response_model=SuccessMsg)
+async def process_addtool(add_tool_input: RemoveToolType):
+    print(add_tool_input)
+    remove_document(add_tool_input.apiName)
     return {"success": True}
