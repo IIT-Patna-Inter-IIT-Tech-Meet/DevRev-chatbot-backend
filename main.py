@@ -228,6 +228,19 @@ def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
     
     return doc_format
 
+
+def generate_document_from_api(api_name: str, api_desc: str, api_args: list):
+    doc_format = ''
+    doc_format += f"##API Name: {api_name} \n"
+    doc_format += f"###Description: {api_desc}\n\n"
+    doc_format += f'###Arguments: \n\n'
+    for j in api_args:
+        doc_format += f"API Argument: {j[0]}\n"
+        doc_format += f"Argument Description: {j[1]}\n"
+        doc_format += f"Return Type: {j[2]}\n"
+        # doc_format += f"Value Examples: {j['Argument Value Examples']}\n"
+    return doc_format
+
 def wait_on_run(run, thread):
     while run.status == "queued" or run.status == "in_progress":
         run = client.beta.threads.runs.retrieve(
@@ -591,6 +604,16 @@ class QueryOutput(BaseModel):
     isResponse: bool
     text: str
     code: dict
+    
+
+class SuccessMsg(BaseModel):
+    success: bool
+
+
+class AddToolType(BaseModel):
+    apiName: str
+    apiDesc: str
+    names: list
 
 
 @app.get("/")
@@ -608,3 +631,13 @@ async def process_query_endpoint(query_input: QueryInput):
     if pipeline_output['Output'] == 'None':
         processed_text += '\n\nSorry! Looks like I cannot answer this request using the provided APIs.'
     return {"isResponse": True, "text": processed_text, "code": pipeline_output}
+
+
+@app.post('/api/addtool/', response_model=SuccessMsg)
+async def process_addtool(add_tool_input: AddToolType):
+    print(add_tool_input)
+    print(generate_document_from_api(add_tool_input.apiName,
+          add_tool_input.apiDesc, add_tool_input.names))
+    add_document(add_tool_input.apiName, generate_document_from_api(
+        add_tool_input.apiName, add_tool_input.apiDesc, add_tool_input.names))
+    return {"success": True}
