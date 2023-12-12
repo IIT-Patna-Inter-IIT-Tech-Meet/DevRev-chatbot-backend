@@ -24,6 +24,7 @@ from data import example_and_tool_db as db
 import ast
 import re
 import pickle
+from FlagEmbedding import FlagReranker
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
@@ -31,10 +32,13 @@ NGROK_LINK = 'https://adb1-34-32-253-133.ngrok.io'
 # OPENAPIKEY = 'XXXXXXXXXXXXXXXXXXXXX'
 
 client = OpenAI()
-thread = client.beta.threads.create()
+# thread = client.beta.threads.create()
 # ret_thread = client.beta.threads.create()
 
 RETRIEVER_INITIALIZED = False
+
+reranker = FlagReranker('BAAI/bge-reranker-base', use_fp16=False) 
+
 
 class QueryHandler(logging.Handler):
     def __init__(self):
@@ -190,6 +194,7 @@ def add_document(api_name, document):
     
     print(f'API {api_name} added at id {add_id} {collection_hf.count()} remains')
 
+
 def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
     with open(api_doc_path, 'r') as f:
         data = json.load(f)
@@ -226,7 +231,6 @@ def wait_on_run(run, thread):
         )
         time.sleep(0.5)
     return run
-
 
 
 def process_query(query: str) -> str:
@@ -269,6 +273,49 @@ def process_query(query: str) -> str:
     #     if ite == idx:
     #         return msg.content[0].text.value
     #     ite += 1
+
+
+def extract_api_info(unique_docs):
+    api_info_list = []
+    for idx,val in enumerate(unique_docs):
+        content = val.page_content
+        api_name_match = re.search(r'##API Name: (.+)', val.page_content)
+        description_match = re.search(r'###Description: (.+?)(?=\n\n|\Z)', val.page_content, re.DOTALL)
+        arguments_match = re.findall(r'API Argumet: (.+?)\nArgument Description: (.+?)\nReturn Type: (.+?)(?=\n\n|\Z)', val.page_content, re.DOTALL)
+
+        print(api_name_match, description_match, arguments_match)
+
+        formatted_string = "{}\n{}\n{}".format(api_name_match.group(0), description_match.group(0), '\n'.join([f'{arg[0]}\nArgument Description: {arg[1]}\nReturn Type: {arg[2]}' for arg in arguments_match]))        
+        
+        struct = {"id":idx, "passage":formatted_string}
+        # print(struct)
+        api_info_list.append(struct)
+        
+    return api_info_list
+
+
+def filter_api_names(unique_docs):
+    api_names = []
+    for i in unique_docs:
+        print((i.page_content))
+        api_match = re.search(r'##API Name: (.+)', i.page_content)
+        if api_match:
+            api_names.append(api_match.group(1).strip())
+    return api_names
+
+
+def re_rank(passages_with_id_list, query, top_k):
+    passages_with_id_and_scores_list = []
+    for passage_with_id in passages_with_id_list:
+        score = reranker.compute_score([query, passage_with_id["passage"]])
+        new_struct = {"id": passage_with_id["id"], "passage": passage_with_id["passage"], "score": score}
+        passages_with_id_and_scores_list.append(new_struct)
+    
+    passages_with_id_and_scores_list = sorted(passages_with_id_and_scores_list, key=lambda x: x["score"], reverse=True)
+    if len(passages_with_id_and_scores_list) <= top_k:
+        return passages_with_id_and_scores_list
+    else:
+        return passages_with_id_and_scores_list[:top_k]
 
 
 def retriever(query: str):
@@ -315,7 +362,7 @@ def retriever(query: str):
         client_hf = chromadb.PersistentClient(path="./hf_db")
         sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
         global collection_hf
-        collection_hf = client_hf.get_or_create_collection(name="hf_check_1", embedding_function = sentence_transformer_ef)
+        collection_hf = client_hf.get_or_create_collection(name="hf_check_1", metadata={"hnsw:space": "cosine"},embedding_function = sentence_transformer_ef)
         collection_hf.upsert(
             documents=doc,
             metadatas=meta,
@@ -354,7 +401,17 @@ def retriever(query: str):
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
     )
-    
+    top_k = len(unique_docs_hf) + 2
+    query = query_handler.generated_queries
+
+    passages = extract_api_info(unique_docs_hf)
+    re_ranked_passages = re_rank(passages, query, top_k)
+
+    retrieved_list = []
+    for p in re_ranked_passages:
+        api_des = p["passage"]
+        retrieved_list.append(api_des)
+    print(unique_docs_hf)
     return unique_docs_hf, query_handler.generated_queries
 
 
@@ -454,7 +511,10 @@ def pipeline(query: str):
     print(f"Total time in pipeline: {retrieval_time + generation_time + feedback_generation_time}s")
     
     #remove_document('prioritize_objects')
-    add_document('Bullshit', 'this is useless')
+    #add_document('Search', 'Lets find this')
+    
+    # print(collection_hf.query(query_texts=["Lets find this"],n_results=1))
+    
     if 'unanswerable' in output2.lower() or 'unanswerable' in output.lower() or 'unanswerable' in feedback.lower():
         output2 = 'Unanswerable'
         return {'Output': 'None'}

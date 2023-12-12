@@ -1,2 +1,1 @@
-WARNING:chromadb.segment.impl.vector.local_persistent_hnsw:Delete of nonexisting embedding ID: id2
-INFO:langchain.retrievers.multi_query:Generated queries: ['Sub query 1: What happens after we die?']
+INFO:langchain.retrievers.multi_query:Generated queries: ['Sub queries:', '1. What are my all issues in the triage stage?', '2. Under part FEAT-123, summarize them.']
