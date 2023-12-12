@@ -1,4 +1,4 @@
-"fastapi[all]"
+fastapi[all]
 chromadb==0.4.15
 langchain==0.0.332
 sentence_transformers

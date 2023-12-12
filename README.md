@@ -1,8 +1,8 @@
-
 # Chatbot Backend
 
 This project is made using FastAPI. This serves as a backend to the frontend chatbot.
 
+**Note:** We consider updation or deletion as a new few, so the extra overhead should be counted as one-time setup.
 
 ## Run Locally
 
@@ -16,6 +16,12 @@ Install dependencies
 
 ```bash
   pip install -r requirements.txt
+```
+
+```bash
+   conda create --name myenv
+   conda activate myenv
+   conda env update --name myenv --file environment.yml --prune
 ```
 
 Add your OpenApi key in main.py
