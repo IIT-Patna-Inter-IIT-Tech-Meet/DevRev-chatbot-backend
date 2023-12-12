@@ -89,6 +89,8 @@ $$PREV[0] = who_am_i()
 $$PREV[1] = works_list(issue.priority=["p0"], owned_by="$$PREV[0]")
 $$PREV[2] = prioritize_objects(objects="$$PREV[1]")
 $$PREV[3] = get_sprint_id()
-$$PREV[4] = add_work_items_to_sprint(work_ids="$$PREV[2]", sprint_id="$$PREV[3]")'''
+$$PREV[4] = add_work_items_to_sprint(work_ids="$$PREV[2]", sprint_id="$$PREV[3]")
+Query: Who are the work items which can be used to solve the Solar System?,
+Output: Unanswerable'''
 
-feedback_prompt = '''You are an intelligent agent that corrects api sequence code based on feedback. You are provided with documentation, examples and feedback, based on them generate the correct code. Remember to follow the format specified in the example and return just the api call sequence.'''
+feedback_prompt = '''You are an intelligent agent that corrects api sequence code based on feedback. You are provided with documentation, examples and feedback, based on them generate the correct code. Consider this feedback. If the feedback can be integrated into your initial output using the given set of API tools, modify the output to include the feedback and return a new API call sequence. Remember to follow the format specified in the example and return just the api call sequence.'''
