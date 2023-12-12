@@ -267,11 +267,14 @@ def get_feedback(input_query, model_output, documentation_and_examples):
 
 
 def pipeline(query: str):
+    start_time = time.time()
+
     model_in = ex.llm_input + '\n\n'
     retrieved_docs, sub_queries = retriever(query)
     
-    #print(sub_queries)
-    
+    retrieval_time = time.time() - start_time
+    print(f"Retrieval Time: {retrieval_time} seconds")
+
     doc_text = ''
     for doc in retrieved_docs:
         doc_text += doc.page_content + '\n\n'
@@ -280,27 +283,29 @@ def pipeline(query: str):
     model_in += doc_text
     model_in += f'###Examples:\n{ex.examples}\n\n'
     model_in += f'###Query:\n{query}'
-    
-    #print(model_in)
 
+    start_time = time.time()
     output = generate_output(model_in)
+    generation_time = time.time() - start_time
+    print(f"Generation Time: {generation_time} seconds")
     
     print(output)
     
     doc_and_examples = doc_text + '\n\nHere are some examples: \n' + ex.examples
     feedback = get_feedback(query, output, doc_and_examples)
     
-    # print(feedback)
-    
-    model_in2 = ex.feedback_prompt + '\n\n' + doc_text +  f'###Examples:\n{ex.examples}\n\n' + f'###Output: {output}\n\n' + f'###Feedback: {feedback}\n\n' + f'###Query:\n{query}'
-    
+    start_time = time.time()
+    model_in2 = ex.feedback_prompt + '\n\n' + doc_text + f'###Examples:\n{ex.examples}\n\n' + f'###Output: {output}\n\n' + f'###Feedback: {feedback}\n\n' + f'###Query:\n{query}'
     output2 = generate_output(model_in2)
+    feedback_generation_time = time.time() - start_time
+    print(f"Final Output Generation Time: {feedback_generation_time} seconds")
+    
     print(output2)
     
     if 'unanswerable' in output2.lower() or 'unanswerable' in output.lower():
-        output2 = 'Unswerable'
+        output2 = 'Unanswerable'
         return {'Output': 'None'}
-    
+
     try:
         return parser.function_to_json(output2)
     except:
