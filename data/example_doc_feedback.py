@@ -74,23 +74,28 @@ $$PREV[2] = summarize_objects(objects=""$$PREV[1]"")"""
 llm_input = 'You are an intelligent AI agent for generating api calls given a user prompt. To answer a query, one or more api may need to be called. You are provided with api documentation and few examples of queries and their outputs. Read it carefully and understand it, as your output should strictly follow the format of the provided examples and documentation. Also few sub-queries are presented which represent a breakdown of query into a sequence of tasks that you should perform to generate api sequence. The output should be such that if I run the api calls sequentially with those parameters then i will get correct output from the server. Remember to follow the format and only return the sequence of api calls and nothing else.'
 
 examples = '''###Examples:
-Query: Summarize issues similar to don:core:dvrv-us-1:devo/0:issue/1
-Output: 
-$$PREV[0] = get_similar_work_items(work_id=don:core:dvrv-us-1:devo/0:issue/1)
-$$PREV[1] = summarize_objects(objects=$$PREV[0])
-Query: Find all of my "p3" priority issues and tickets in "support" stage for Rev organization "RevTech", summarize them.
-Output: 
-$$PREV[0] = whoami()
-$$PREV[1] = works_list(owned_by=$$PREV[0], issue.priority=["p2"], applies_to_part=["frontend"])
-$$PREV[2] = summarize_objects(objects=$$PREV[1])
-Query: Prioritize my P0 issues and add them to the current sprint
-Output: 
-$$PREV[0] = who_am_i()
-$$PREV[1] = works_list(issue.priority=["p0"], owned_by="$$PREV[0]")
-$$PREV[2] = prioritize_objects(objects="$$PREV[1]")
-$$PREV[3] = get_sprint_id()
-$$PREV[4] = add_work_items_to_sprint(work_ids="$$PREV[2]", sprint_id="$$PREV[3]")
-Query: Who are the work items which can be used to solve the Solar System?,
-Output: Unanswerable'''
+Query: Given a customer meeting transcript T, create action items and add them to my current sprint.
+Output: $$PREV[0] = create_actionable_tasks_from_text(text""T"")
+$$PREV[1] = get_sprint_id()
+$$PREV[2] = add_work_items_to_sprint(work_ids=""$$PREV[0]"", sprint_id=""$$PREV[1]"")
+Answerability: Answerable
 
-feedback_prompt = '''You are an intelligent agent that corrects api sequence code based on feedback. You are provided with documentation, examples and feedback, based on them generate the correct code. Consider this feedback. If the feedback can be integrated into your initial output using the given set of API tools, modify the output to include the feedback and return a new API call sequence. Remember to follow the format specified in the example and return just the api call sequence.'''
+Query: Retrieve all P2 tickets needing a response for 'RevA' organization, prioritize them, and then add them to the current sprint.
+
+Output: $$PREV[0] = works_list(ticket.rev_org=[""RevA""], ticket.needs_response=true, ticket.priority=[""p2""])
+$$PREV[1] = prioritize_objects(objects=""$$PREV[0]"")
+$$PREV[2] = get_sprint_id()
+$$PREV[3] = add_work_items_to_sprint(work_ids=""$$PREV[1]"", sprint_id=""$$PREV[2]"")"
+Answerability: Answerable
+
+Query: List all high severity tickets coming in from slack from customer Cust123 and generate a summary of the top 5 issues.
+Output:
+Answerability: Unanswerable
+
+Query: Generate a summary of the planets in our solar system.
+Output:
+Answerability: Unanswerable'''
+
+# feedback_prompt = '''You are an intelligent agent that corrects api sequence code based on feedback. You are provided with documentation, examples and feedback, based on them generate the correct code. Consider this feedback. If the feedback can be integrated into your initial output using the given set of API tools, modify the output to include the feedback and return a new API call sequence. Remember to follow the format specified in the example and return just the api call sequence.'''
+
+feedback_prompt = """You are an intelligent agent that corrects api sequence code based on feedback. You are provided with documentation, examples and feedback, based on them generate the correct code. Consider this feedback. If and only if the feedback can be integrated into your initial output using the given set of API tools and argument list from the documentation, modify the output to include the feedback and return a new API call sequence. Basically incorporate only those changes from the feedback which are in the scope of the provided API Tools and their corresponding arguments documentation. Do not make up new tools or arguments, stick to the given ones, the feedback is only a suggestion, you first need to decide if it can integrated with the given tools or not. Do not output anything other than the final API call sequence. Strictly output only the final API call sequence. Remember to follow the format specified in the example and return just the api call sequence."""
