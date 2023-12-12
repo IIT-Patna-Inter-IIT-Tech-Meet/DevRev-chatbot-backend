@@ -25,6 +25,11 @@ import ast
 import re
 import pickle
 from FlagEmbedding import FlagReranker
+
+import tiktoken
+
+encoding = tiktoken.get_encoding("cl100k_base")
+encoding = tiktoken.encoding_for_model("gpt-4-1106-preview")
 import random
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
@@ -224,6 +229,19 @@ def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
     
     return doc_format
 
+
+def generate_document_from_api(api_name: str, api_desc: str, api_args: list):
+    doc_format = ''
+    doc_format += f"##API Name: {api_name} \n"
+    doc_format += f"###Description: {api_desc}\n\n"
+    doc_format += f'###Arguments: \n\n'
+    for j in api_args:
+        doc_format += f"API Argument: {j[0]}\n"
+        doc_format += f"Argument Description: {j[1]}\n"
+        doc_format += f"Return Type: {j[2]}\n"
+        # doc_format += f"Value Examples: {j['Argument Value Examples']}\n"
+    return doc_format
+
 def wait_on_run(run, thread):
     while run.status == "queued" or run.status == "in_progress":
         run = client.beta.threads.runs.retrieve(
@@ -380,7 +398,6 @@ def retriever(query: str):
             template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
             Original question: {question}""",
         )
-        
         llm = ChatOpenAI(temperature=0)
         llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
         global client_hf
@@ -393,7 +410,7 @@ def retriever(query: str):
             metadatas=meta,
             ids=id
         )
-        
+
         print(f'Total docs detected after update/restart: {collection_hf.count()}')
         
         embeddings_hf = HuggingFaceEmbeddings(
@@ -405,10 +422,12 @@ def retriever(query: str):
             embedding_function=embeddings_hf,
             persist_directory = "./hf_db",
         )
+        
         global retriever_from_llm
         retriever_from_llm = MultiQueryRetriever(
             retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
         )
+        
         RETRIEVER_INITIALIZED = True
         
         # Save doc to file
@@ -422,7 +441,7 @@ def retriever(query: str):
         # Save id to file
         with open('data/id.pkl', 'wb') as file:
             pickle.dump(id, file)
-
+    
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
     )
@@ -442,7 +461,7 @@ def retriever(query: str):
 
 def generate_output(llm_in, temperature = 0.2):
     completion = client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4-1106-preview",
         messages=[
             {"role": "system", "content": 'as'},
             {"role": "user", "content": llm_in}
@@ -464,8 +483,11 @@ def feedback_part1(documentation_and_examples, input_query, model_output, temper
 
     updated_prompt = """You are an expert at analyzing API call sequences. Given an API call sequence and the input query, your job is to explain the task being performed by the API calls in small steps and determine whether the given query is answerable or unanswerable. Do not explain the API call, just output what it is doing. Output the small steps in points and nothing else. Keep the small steps as short and precise as possible. In order for the query to be classified as answerable, there should exist a correct sequence of API calls from the given set of API tools capable of solving the given query. If the query is unanswerable, do not break the API sequence into small steps. Just output a single word Answerable/Unanswerable. Look closely into the API tools' allowed arguments before deciding, for example: sometimes queries such as extract the 'top 5' might be unanswerable since the given API tools might not have any argument which can filter out a specified set of results, and using things like 'slice' would be wrong as it is not a valid API argument! Here is the API documentation along with some examples: """ + documentation_and_examples + """\n Here is the input query: """ + input_query + """\n here is the API call sequence: """ + model_output + """\n Keep your output as concise as possible and to the point."""
 
+    length = len(encoding.encode(str(updated_prompt)))
+    print("Feedback 1 token length: ", length)
+
     feedback_response1 = client.chat.completions.create(
-    model="gpt-4",
+    model="gpt-4-1106-preview",
     messages = [{"role": "user", "content" : updated_prompt}],
     temperature=temperature,
     max_tokens = max_tokens,
@@ -474,24 +496,35 @@ def feedback_part1(documentation_and_examples, input_query, model_output, temper
 
 
 def feedback_part2(input_query, generated_query, temperature = 0.1, max_tokens = 150):
-    feedback_prompt2 = """I am training an agent to generate the output based on an input query. Based on the output generated by the agent, I have written a generated query. You have to analyze how the generated query is different from the input query. If the generated query mentions unanswerable, just return "Unanswerable" do not output anything else. Otherwise, based on this, give feedback to the output-generating agent about how the output written by it should be modified using the given API documentation to satisfy the input query. Keep the feedback precise and to the point. Do not mention the generated query in the feedback. Output only the feedback and nothing else.\n""" + input_query + """\n Here is the generated query: \n""" + generated_query
+    feedback_prompt2 = """I am training an agent to generate an output API call sequence based on an input query. Based on the output generated by the agent, I have written a generated query. You have to do the following:
+1) If the generated query mentions unanswerable, then just return "Unanswerable". Do not output anything else.
+2) Analyze whether the generated query is different from the input query. If both of them have the same meaning, then just return "correct api sequence". Do not output anything else.
+3) If they are different, then give feedback to the output generating agent about how the API call sequence by it should be modified in order to satisfy the input query. Keep the feedback precise and to the point. Do not mention the generaed query in the feedback. Output only the feedback and nothing else.\n""" + input_query + """\n Here is the generated query: \n""" + generated_query
+    
+    length = len(encoding.encode(str(feedback_prompt2)))
+    print("Feedback 2 input token length: ", length)
     
     feedback_response2 = client.chat.completions.create(
-    model="gpt-4",
+    model="gpt-4-1106-preview",
     messages = [{"role": "user", "content" : feedback_prompt2}],
     temperature=temperature,
     max_tokens = max_tokens,
     )
-    
     return feedback_response2.choices[0].message.content
 
 
 def get_feedback(input_query, model_output, documentation_and_examples):
     
     feedback_output1 = feedback_part1(documentation_and_examples, input_query, model_output)
-    # print(feedback_output1)
+    print("Feedback Output 1: \n", feedback_output1)
+    
+    length = len(encoding.encode(str(feedback_output1)))
+    print("Feedback 1 output token length: ", length)
     
     final_feedback = feedback_part2(input_query, feedback_output1)
+    
+    length = len(encoding.encode(str(final_feedback)))
+    print("Final feedback output token length: ", length)
     
     return final_feedback
 
@@ -499,6 +532,8 @@ def get_feedback(input_query, model_output, documentation_and_examples):
 def pipeline(query: str):
     start_time = time.time()
 
+    print("Starting retrieval...")
+    
     model_in = ex.llm_input + '\n\n'
     retrieved_docs, sub_queries, selected = retriever(query)
     
@@ -516,8 +551,15 @@ def pipeline(query: str):
     model_in += f'###Examples:\n{selected}\n\n'
     model_in += f'###Query:\n{query}'
 
+    length = len(encoding.encode(str(model_in)))
+    print("Initial model token length: ", length)
+
     start_time = time.time()
     output = generate_output(model_in)
+    
+    length = len(encoding.encode(str(output)))
+    print("Initial output token length: ", length)
+    
     generation_time = time.time() - start_time
     print(f"Generation Time: {generation_time} seconds")
     
@@ -525,11 +567,27 @@ def pipeline(query: str):
     
     doc_and_examples = doc_text + '\n\nHere are some examples: \n' + selected
     feedback = get_feedback(query, output, doc_and_examples)
-    print(feedback)
+    print("Feedback: ", feedback)
     
     start_time = time.time()
     model_in2 = ex.feedback_prompt + '\n\n' + doc_text + f'###Examples:\n{selected}\n\n' + f'###Output: {output}\n\n' + f'###Feedback: {feedback}\n\n' + f'###Query:\n{query}'
-    output2 = generate_output(model_in2, temperature = 0.1)
+    
+    length = len(encoding.encode(str(model_in2)))
+    print("model_in2 token length: ", length)
+    
+    if 'unanswerable' in feedback.lower():
+        print("Unanswerable")
+        output2 = 'Unanswerable'
+    
+    elif 'correct api sequence' in feedback.lower():
+        print("Initial output is correct")
+        output2 = output
+        
+    else:
+        output2 = generate_output(model_in2, temperature = 0.1)
+        length = len(encoding.encode(str(output2)))
+        print("Output2 token length: ", length)
+    
     feedback_generation_time = time.time() - start_time
     print(f"Final Output Generation Time: {feedback_generation_time} seconds")
     
@@ -573,6 +631,16 @@ class QueryOutput(BaseModel):
     isResponse: bool
     text: str
     code: dict
+    
+
+class SuccessMsg(BaseModel):
+    success: bool
+
+
+class AddToolType(BaseModel):
+    apiName: str
+    apiDesc: str
+    names: list
 
 
 @app.get("/")
@@ -590,3 +658,23 @@ async def process_query_endpoint(query_input: QueryInput):
     if pipeline_output['Output'] == 'None':
         processed_text += '\n\nSorry! Looks like I cannot answer this request using the provided APIs.'
     return {"isResponse": True, "text": processed_text, "code": pipeline_output}
+
+
+@app.post('/api/addtool/', response_model=SuccessMsg)
+async def process_addtool(add_tool_input: AddToolType):
+    print(add_tool_input)
+    print(generate_document_from_api(add_tool_input.apiName,
+          add_tool_input.apiDesc, add_tool_input.names))
+    add_document(add_tool_input.apiName, generate_document_from_api(
+        add_tool_input.apiName, add_tool_input.apiDesc, add_tool_input.names))
+    return {"success": True}
+
+
+@app.post('/api/updatetool/', response_model=SuccessMsg)
+async def process_addtool(add_tool_input: AddToolType):
+    print(add_tool_input)
+    print(generate_document_from_api(add_tool_input.apiName,
+          add_tool_input.apiDesc, add_tool_input.names))
+    update_document(add_tool_input.apiName, generate_document_from_api(
+        add_tool_input.apiName, add_tool_input.apiDesc, add_tool_input.names))
+    return {"success": True}
