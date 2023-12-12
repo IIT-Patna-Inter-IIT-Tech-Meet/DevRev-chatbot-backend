@@ -46,6 +46,7 @@ RETRIEVER_INITIALIZED = False
 reranker = FlagReranker('BAAI/bge-reranker-base', use_fp16=False) 
 
 
+
 class QueryHandler(logging.Handler):
     def __init__(self):
         super().__init__()
@@ -90,18 +91,20 @@ def remove_document(api_name):
         id = pickle.load(file)
     
     indx = ''
+    num = -1
     for i, val in enumerate(meta):
         if val['API'] == api_name:
             indx = id[i]
+            num = i
             break
     
     collection_hf.delete(
         ids=[indx]
     )
     
-    doc.pop(indx)
-    meta.pop(indx)
-    id.pop(indx)
+    doc.pop(num)
+    meta.pop(num)
+    id.pop(num)
     
     # Save doc to file
     with open('data/doc.pkl', 'wb') as file:
@@ -228,6 +231,86 @@ def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
     # return doc_format + ex_format
     
     return doc_format
+
+
+if not RETRIEVER_INITIALIZED:
+        class LineList(BaseModel):
+            lines: List[str] = Field(description="Lines of text")
+
+        class LineListOutputParser(PydanticOutputParser):
+            def __init__(self) -> None:
+                super().__init__(pydantic_object=LineList)
+
+            def parse(self, text: str) -> LineList:
+                lines = text.strip().split("\n")
+                return LineList(lines=lines)
+        api_list = []
+        with open('./data/api_documentation.json', 'r') as f:
+            data = json.load(f)
+        for i in data['ToolList']:
+            api_list.append(i['API Name'])
+            
+        doc = []
+        meta = []
+        id = []
+        for itr, i in enumerate(api_list):
+            api = {}
+            doc.append(generate_document('./data/api_documentation.json', './data/examples.json', i))
+            api["API"] = i
+            meta.append(api)
+            id.append(f"ID{itr}")
+
+        output_parser = LineListOutputParser()
+        
+        QUERY_PROMPT = PromptTemplate(
+            input_variables=["question"],
+            # template = "Repeat the word apple two times, like, \napple\napple",
+            template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
+            Original question: {question}""",
+        )
+        llm = ChatOpenAI(temperature=0)
+        llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
+        global client_hf
+        client_hf = chromadb.PersistentClient(path="./hf_db")
+        sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
+        global collection_hf
+        collection_hf = client_hf.get_or_create_collection(name="hf_check_1", metadata={"hnsw:space": "cosine"},embedding_function = sentence_transformer_ef)
+        collection_hf.upsert(
+            documents=doc,
+            metadatas=meta,
+            ids=id
+        )
+
+        print(f'Total docs detected after update/restart: {collection_hf.count()}')
+        
+        embeddings_hf = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-base-en-v1.5"
+        )
+
+        vectorstore_hf = Chroma(
+            collection_name="hf_check_1",
+            embedding_function=embeddings_hf,
+            persist_directory = "./hf_db",
+        )
+        
+        global retriever_from_llm
+        retriever_from_llm = MultiQueryRetriever(
+            retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
+        )
+        
+        RETRIEVER_INITIALIZED = True
+        
+        # Save doc to file
+        with open('data/doc.pkl', 'wb') as file:
+            pickle.dump(doc, file)
+
+        # Save meta to file
+        with open('data/meta.pkl', 'wb') as file:
+            pickle.dump(meta, file)
+
+        # Save id to file
+        with open('data/id.pkl', 'wb') as file:
+            pickle.dump(id, file)
 
 
 def generate_document_from_api(api_name: str, api_desc: str, api_args: list):
@@ -362,7 +445,6 @@ def select_examples(unique_docs_hf):
     
     
 def retriever(query: str):
-    global RETRIEVER_INITIALIZED
     if not RETRIEVER_INITIALIZED:
         class LineList(BaseModel):
             lines: List[str] = Field(description="Lines of text")
@@ -441,6 +523,7 @@ def retriever(query: str):
         # Save id to file
         with open('data/id.pkl', 'wb') as file:
             pickle.dump(id, file)
+    
     
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query

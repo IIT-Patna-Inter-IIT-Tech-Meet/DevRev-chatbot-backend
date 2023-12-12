@@ -78,3 +78,9 @@ def function_to_json(sample, index = True):
     data['Output']=outputs
 
     return data
+
+print(function_to_json('''$$PREV[0] = who_am_i()
+$$PREV[1] = works_list(created_by=[\"$$PREV[0]\"],type=[\"issue\",\"ticket\"])
+$$PREV[2] = summarize_objects(objects=\"$$PREV[1]\")
+$$PREV[3] = create_actionable_tasks_from_text(text=\"$$PREV[2]\")
+$$PREV[4] = prioritize_objects(objects=\"$$PREV[3]\")'''))
