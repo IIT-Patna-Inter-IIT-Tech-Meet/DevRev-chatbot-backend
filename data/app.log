@@ -1,2 +1,2 @@
-INFO:langchain.retrievers.multi_query:Generated queries: ['Sub query 1: Identify tickets from the customer UltimateCustomer.', 'Sub query 2: Filter out high severity tickets from the identified tickets.', 'Sub query 3: Summarize the high severity tickets.']
-INFO:langchain.retrievers.multi_query:Generated queries: ['Sub query 1: Prove that P = NP.']
+WARNING:chromadb.segment.impl.vector.local_persistent_hnsw:Delete of nonexisting embedding ID: id2
+INFO:langchain.retrievers.multi_query:Generated queries: ['Sub query 1: What happens after we die?']

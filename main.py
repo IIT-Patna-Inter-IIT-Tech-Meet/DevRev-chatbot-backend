@@ -23,6 +23,7 @@ from data import parser_output as parser
 from data import example_and_tool_db as db
 import ast
 import re
+import pickle
 
 ASSISTANT_ID = 'asst_VSDOllgBf0GkI50zVnBJdJ5N'
 # RETRIEVER_ID = 'asst_xMGkLqbVNc1EYAg14AFxpEdr'
@@ -64,6 +65,130 @@ logger.setLevel(logging.INFO)
 query_handler = QueryHandler()
 logger.addHandler(query_handler)
 
+
+def remove_document(api_name):
+    # Load doc from file
+    with open('data/doc.pkl', 'rb') as file:
+        doc = pickle.load(file)
+
+    # Load meta from file
+    with open('data/meta.pkl', 'rb') as file:
+        meta = pickle.load(file)
+
+    # Load id from file
+    with open('data/id.pkl', 'rb') as file:
+        id = pickle.load(file)
+    
+    indx = ''
+    for i, val in enumerate(meta):
+        if val['API'] == api_name:
+            indx = id[i]
+            break
+    
+    collection_hf.delete(
+        ids=[indx]
+    )
+    
+    doc.pop(indx)
+    meta.pop(indx)
+    id.pop(indx)
+    
+    # Save doc to file
+    with open('data/doc.pkl', 'wb') as file:
+        pickle.dump(doc, file)
+
+    # Save meta to file
+    with open('data/meta.pkl', 'wb') as file:
+        pickle.dump(meta, file)
+
+    # Save id to file
+    with open('data/id.pkl', 'wb') as file:
+        pickle.dump(id, file)
+    
+    print(f'API {api_name} removed at id {indx} {collection_hf.count()} remains')
+        
+
+def update_document(api_name, document):
+    # Load doc from file
+    with open('data/doc.pkl', 'rb') as file:
+        doc = pickle.load(file)
+
+    # Load meta from file
+    with open('data/meta.pkl', 'rb') as file:
+        meta = pickle.load(file)
+
+    # Load id from file
+    with open('data/id.pkl', 'rb') as file:
+        id = pickle.load(file)
+    
+    indx = ''
+    num = -1
+    for i, val in enumerate(meta):
+        if val['API'] == api_name:
+            indx = id[i]
+            num = i
+            break
+    
+    collection_hf.upsert(
+        documents=[document],
+        ids = [indx],
+        metadatas=[{'API': api_name}]
+    )
+    
+    doc[num] = document
+    
+    # Save doc to file
+    with open('data/doc.pkl', 'wb') as file:
+        pickle.dump(doc, file)
+
+    # Save meta to file
+    with open('data/meta.pkl', 'wb') as file:
+        pickle.dump(meta, file)
+
+    # Save id to file
+    with open('data/id.pkl', 'wb') as file:
+        pickle.dump(id, file)
+    
+    print(f'API {api_name} updated at id {indx} {collection_hf.count()} remains')
+    
+
+def add_document(api_name, document):
+    # Load doc from file
+    with open('data/doc.pkl', 'rb') as file:
+        doc = pickle.load(file)
+
+    # Load meta from file
+    with open('data/meta.pkl', 'rb') as file:
+        meta = pickle.load(file)
+
+    # Load id from file
+    with open('data/id.pkl', 'rb') as file:
+        id = pickle.load(file)
+    
+    add_id = f'ID{collection_hf.count() + 1}'
+    collection_hf.add(
+        documents=[document],
+        ids = [add_id],
+        metadatas=[{'API': api_name}]
+    )
+    
+    doc.append(document)
+    id.append(add_id)
+    meta.append({'API': api_name})
+    
+    # Save doc to file
+    with open('data/doc.pkl', 'wb') as file:
+        pickle.dump(doc, file)
+
+    # Save meta to file
+    with open('data/meta.pkl', 'wb') as file:
+        pickle.dump(meta, file)
+
+    # Save id to file
+    with open('data/id.pkl', 'wb') as file:
+        pickle.dump(id, file)
+    
+    print(f'API {api_name} added at id {add_id} {collection_hf.count()} remains')
 
 def generate_document(api_doc_path: str, api_example_path: str, api_name: str):
     with open(api_doc_path, 'r') as f:
@@ -183,11 +308,13 @@ def retriever(query: str):
             template="""You are a instructor your job is to break a query into smaller parts and provide it to worker. Given a conversation utterance by a user, ignore all the non-query part and try to break the main query into smaller steps. Don't include multiple steps, just whatever the query is trying to address. Output only the sub queries step by step and nothing else.
             Original question: {question}""",
         )
+        
         llm = ChatOpenAI(temperature=0)
         llm_chain = LLMChain(llm=llm, prompt=QUERY_PROMPT, output_parser=output_parser)
         global client_hf
         client_hf = chromadb.PersistentClient(path="./hf_db")
         sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="BAAI/bge-base-en-v1.5")
+        global collection_hf
         collection_hf = client_hf.get_or_create_collection(name="hf_check_1", embedding_function = sentence_transformer_ef)
         collection_hf.upsert(
             documents=doc,
@@ -211,10 +338,23 @@ def retriever(query: str):
             retriever=vectorstore_hf.as_retriever(), llm_chain=llm_chain, parser_key="lines"
         )
         RETRIEVER_INITIALIZED = True
+        
+        # Save doc to file
+        with open('data/doc.pkl', 'wb') as file:
+            pickle.dump(doc, file)
+
+        # Save meta to file
+        with open('data/meta.pkl', 'wb') as file:
+            pickle.dump(meta, file)
+
+        # Save id to file
+        with open('data/id.pkl', 'wb') as file:
+            pickle.dump(id, file)
 
     unique_docs_hf = retriever_from_llm.get_relevant_documents(
         query=query
     )
+    
     return unique_docs_hf, query_handler.generated_queries
 
 
@@ -313,7 +453,8 @@ def pipeline(query: str):
     
     print(f"Total time in pipeline: {retrieval_time + generation_time + feedback_generation_time}s")
     
-    
+    #remove_document('prioritize_objects')
+    add_document('Bullshit', 'this is useless')
     if 'unanswerable' in output2.lower() or 'unanswerable' in output.lower() or 'unanswerable' in feedback.lower():
         output2 = 'Unanswerable'
         return {'Output': 'None'}
