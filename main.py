@@ -302,13 +302,16 @@ def pipeline(query: str):
     
     print(output2)
     
+    print(f"Total time in pipeline: {retrieval_time + generation_time + feedback_generation_time}s")
+    
     if 'unanswerable' in output2.lower() or 'unanswerable' in output.lower():
         output2 = 'Unanswerable'
         return {'Output': 'None'}
 
     try:
         return parser.function_to_json(output2)
-    except:
+    except Exception as e:
+        print(f"Error: {e}")
         return {'Output': output2}
 
 app = FastAPI()
