@@ -41,6 +41,9 @@ def comma_correction(arglist):
 
 def function_to_json(sample, index = True):
 
+    sample = '$$PREV[0]' + sample.split('$$PREV[0]', 1)[1]
+    print("Sample: \n",sample)
+    
     data = {"Output" : ""}
     sample = sample.strip().split('\n')
     outputs = []
