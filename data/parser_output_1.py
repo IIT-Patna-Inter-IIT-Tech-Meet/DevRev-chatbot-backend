@@ -40,14 +40,12 @@ def comma_correction(arglist):
     return correct_list
 
 def function_to_json(sample, index = True):
-    
-    data = {"Query": "", "Output" : ""}
-    query , result = sample.split('Output:')
-    query = query.split('Query:')[-1].strip()
-    result = result.strip().split('\n')
+
+    data = {"Output" : ""}
+    sample = sample.strip().split('\n')
     outputs = []
-    
-    for toolind, tool in enumerate(result):
+
+    for toolind, tool in enumerate(sample):
         tooldict = {"tool_name" : "" , "arguments" : []}
         if index == True:
             api_ret_val = "$$PREV[{}] = ".format(toolind)
@@ -67,8 +65,8 @@ def function_to_json(sample, index = True):
         tooldict["tool_name"] = tool_name
         tooldict["arguments"] = arguments
         outputs.append(tooldict)
-        
+
     data["Output"] = outputs
-    data["Query"] = query
     
-    return dict(data["Output"])
+
+    return data
